@@ -1,5 +1,5 @@
 
-# predicting house price (one feature)
+# predicting house price (one variable)
 
 import numpy as np
 import pandas as pd
