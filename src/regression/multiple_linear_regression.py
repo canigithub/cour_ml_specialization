@@ -18,6 +18,7 @@ data = pd.read_csv('../../data/regression/kc_house_data.csv', dtype=dtype_dict)
 
 train_data, test_data = train_test_split(data, test_size=0.2, random_state=0)
 
+pd.options.mode.chained_assignment = None  # default='warn'
 
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 # use build-in linear regression model
@@ -45,7 +46,6 @@ def get_residual_sum_of_squares(model, data, outcome):
 rss_example_train = get_residual_sum_of_squares(example_model, train_data[example_features], train_data['price'])
 # print rss_example_train
 
-pd.options.mode.chained_assignment = None  # default='warn'
 # insert new column at the back of dataframe
 train_data['bedrooms_squared'] = train_data['bedrooms'] * train_data['bedrooms']
 test_data['bedrooms_squared'] = test_data['bedrooms'] * test_data['bedrooms']
