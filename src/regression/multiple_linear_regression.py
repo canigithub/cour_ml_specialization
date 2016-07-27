@@ -21,7 +21,7 @@ train_data, test_data = train_test_split(data, test_size=0.2, random_state=0)
 pd.options.mode.chained_assignment = None  # default='warn'
 
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
-# use build-in linear regression model
+# use sklearn linear regression model
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 
 example_features = ['sqft_living', 'bedrooms', 'bathrooms']
@@ -108,23 +108,23 @@ example_features, example_output = get_numpy_data(data, ['sqft_living'], 'price'
 
 
 # feature_matrix: NxD, weights: Dx1
-def predict_outcome(feature_matrix, weights):
+def predict_output(feature_matrix, weights):
     predictions = feature_matrix.dot(weights)
     return predictions
 
 example_weights = np.array([1., 1.])
-example_predictions = predict_outcome(example_features, example_weights)
+example_predictions = predict_output(example_features, example_weights)
 # print example_predictions[0:2]
 
 
 # RSS_gradient = -2*H.T*(y-y_hat) -> Dx1 vector
-# errors: y - y_hat, feature: h
+# errors: y - y_hat, feature: H
 # errors: Nx1, feature: NxD
 def feature_derivative(errors, feature):
     return -2*feature.T.dot(errors)
 
 example_weights = np.array([0., 0.])
-example_predictions = predict_outcome(example_features, example_weights)
+example_predictions = predict_output(example_features, example_weights)
 example_errors = example_predictions - example_output
 feature_const = example_features[:, 0]
 example_derivative = feature_derivative(example_errors, feature_const)
@@ -138,7 +138,7 @@ def regression_gradient_descent(feature_matrix, output, init_weights, step_size,
     weights = np.array(init_weights)
 
     while not converged:
-        predictions = predict_outcome(feature_matrix, weights)
+        predictions = predict_output(feature_matrix, weights)
         errors = output - predictions
         derivative = feature_derivative(errors, feature_matrix)
         weights -= step_size*derivative
@@ -167,13 +167,13 @@ tolerance = 1e9
 model_weights = regression_gradient_descent(feature_matrix, output, init_weights, step_size, tolerance)
 
 test_model_feature_matrix, test_output = get_numpy_data(test_data, input_features, output_feature)
-model_predictions_test = predict_outcome(test_model_feature_matrix, model_weights)
+model_predictions_test = predict_output(test_model_feature_matrix, model_weights)
 # print model_prediction_test[0], test_output[0]
 
 
 # data: feature_matrix
 def get_residual_sum_of_squares(data, outcome, weights):
-    predictions = predict_outcome(data, weights)
+    predictions = predict_output(data, weights)
     residuals = outcome - predictions
     rss = (residuals*residuals).sum()
     return rss

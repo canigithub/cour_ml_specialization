@@ -8,6 +8,7 @@ from sklearn.linear_model import Ridge
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 
+pd.options.mode.chained_assignment = None  # default='warn'
 
 dtype_dict = {'bathrooms': float, 'waterfront': int, 'sqft_above': int, 'sqft_living15': float,
               'grade': int, 'yr_renovated': int, 'price': float, 'bedrooms': float,
@@ -36,7 +37,7 @@ def polynomial_dataframe(feature, degree):
 
 
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
-# use build-in ridge regression model
+# use sklearn ridge regression model
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 
 l2_penalty = 1e-5
@@ -110,8 +111,85 @@ def get_numpy_data(dataframe, features, output):
     return feature_matrix, output_array
 
 
+# feature_matrix: NxD, weights: Dx1
+def predict_output(feature_matrix, weights):
+    predictions = feature_matrix.dot(weights)
+    return predictions
 
 
+# Cost(w) = SUM[ (prediction - output)^2 ] + l2_penalty*(w[0]^2 + ... + w[k]^2)
+# cost_gradient = -2*H.T*(y-y_hat) + 2*l2_penalty*weight_vector -> Dx1 vector
+# errors: y - y_hat, feature: H
+# errors: Nx1, feature: NxD, weights: Dx1
+# feature_constant: col # of the constant -> skip penalty on this column
+def feature_derivative_ridge(errors, feature, weights, l2_penalty, feature_constant):
+    derivative = -2*feature.T.dot(errors) + 2*l2_penalty*weights
+    derivative[feature_constant] -= 2*l2_penalty*weights[feature_constant]
+    return derivative
 
+
+(example_features, example_output) = get_numpy_data(sales, ['sqft_living'], 'price')
+my_weights = np.array([1., 10.])
+test_predictions = predict_output(example_features, my_weights)
+errors = test_predictions - example_output  # prediction errors
+
+# print feature_derivative_ridge(errors, example_features, my_weights, 1, 0)
+# print np.sum(errors)*2., np.sum(errors*example_features[:, 1])*2+20.
+
+
+# use max_iter as terminate condition only
+def ridge_regression_gradient_descent(feature_matrix, output, init_weights,
+                                      step_size, l2_penalty, max_iter = 100):
+    weights = np.array(init_weights)
+    count = 0
+    while count < max_iter:
+        predictions = predict_output(feature_matrix, weights)
+        errors = output - predictions
+        derivative = feature_derivative_ridge(errors, feature_matrix, weights,
+                                              l2_penalty, feature_constant=0)
+        weights -= step_size * derivative
+        count += 1
+
+    return weights
+
+
+simple_features = ['sqft_living']
+my_output = 'price'
+
+train_data, test_data = cv.train_test_split(sales, test_size=.2, random_state=0)
+
+(simple_feature_matrix, output) = get_numpy_data(train_data, simple_features, my_output)
+(simple_test_feature_matrix, test_output) = get_numpy_data(test_data, simple_features, my_output)
+
+initial_weights = np.array([0., 0.])
+step_size = 1e-12
+
+simple_weights_0_penalty = ridge_regression_gradient_descent(simple_feature_matrix,
+                                        output, initial_weights, step_size, 0.0, 1000)
+simple_weights_high_penalty = ridge_regression_gradient_descent(simple_feature_matrix,
+                                        output, initial_weights, step_size, 1e11, 1000)
+# print simple_weights_0_penalty, simple_weights_high_penalty
+
+# plt.plot(simple_feature_matrix,output,'k.',
+#          simple_feature_matrix,predict_output(simple_feature_matrix,
+#                                               simple_weights_0_penalty),'b-',
+#          simple_feature_matrix,predict_output(simple_feature_matrix,
+#                                               simple_weights_high_penalty),'r-')
+# plt.show()
+
+
+model_features = ['sqft_living', 'sqft_living15']
+my_output = 'price'
+(feature_matrix, output) = get_numpy_data(train_data, model_features, my_output)
+(test_feature_matrix, test_output) = get_numpy_data(test_data, model_features, my_output)
+
+initial_weights = np.array([0., 0., 0.])
+step_size = 1e-12
+
+multiple_weights_0_penalty = ridge_regression_gradient_descent(feature_matrix, output,
+                                                               initial_weights, step_size, 0.0, 1000)
+multiple_weights_high_penalty = ridge_regression_gradient_descent(feature_matrix, output,
+                                                                  initial_weights, step_size, 1e11, 1000)
+print multiple_weights_0_penalty, multiple_weights_high_penalty
 
 
