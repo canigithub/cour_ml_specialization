@@ -17,7 +17,7 @@ dtype_dict = {'bathrooms': float, 'waterfront': int, 'sqft_above': int, 'sqft_li
               'yr_built': int, 'id': str, 'sqft_lot': int, 'view': int}
 
 
-sales = pd.read_csv('../../data/regression/kc_house_data.csv', dtype=dtype_dict)
+sales = pd.read_csv('../../data/kc_house_data.csv', dtype=dtype_dict)
 
 
 # feautres/output: column names
