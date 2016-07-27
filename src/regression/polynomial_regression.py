@@ -86,6 +86,7 @@ poly_validate['price'] = validate_data['price']
 poly_test = polynomial_dataframe(test_data['sqft_living'], 15)
 poly_test['price'] = test_data['price']
 
+
 def get_residual_sum_of_squares(model, data, outcome):
 
     predictions = model.predict(data)
@@ -93,8 +94,10 @@ def get_residual_sum_of_squares(model, data, outcome):
     rss = (residual*residual).sum()
     return rss
 
+
+# select the best model
 for i in range(1, 16):
-    model = LinearRegression(fit_intercept=True)
+    model = LinearRegression(fit_intercept=True, normalize=True)
     model.fit(poly_train[features[0:i]], poly_train['price'])
     rss_validate = get_residual_sum_of_squares(model, poly_validate[features[0:i]], poly_validate['price'])
     validate_rss_list.append(rss_validate)
@@ -106,7 +109,7 @@ for i in range(1, 16):
     test_rss_list.append(rss_test)
     print i, rss_validate, rss_test
 
-
+print degree
 plt.plot(np.array(range(1, 16)), test_rss_list, 'r')
 plt.show()
 
