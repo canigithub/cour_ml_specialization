@@ -115,14 +115,15 @@ def normalize_features(feature_matrix):
     norms = np.linalg.norm(feature_matrix, axis=0)  # 2-norms of column
     return feature_matrix / norms, norms
 
-
-# argmin_{w[i]} [ SUM[ (prediction - output)^2 ] + lambda*( |w[1]| + ... + |w[k]|) ]
-#         / (ro[i] + lambda/2)    if ro[i] < -lambda/2
-# w[i] = {  0                     if -lambda/2 <= ro[i] <= lambda/2
-#         \ (ro[i] - lambda/2)    if ro[i] > lambda/2
-# ro[i] = SUM[ [feature_i]*(output - (prediction -[feature_i]*w[i])) ]
-# ( row 1: -H(1,i)*w[i], row 2: -H(2,i)*w[i], ... )
-# note: we do not regularize constant feature, so w[0] = ro[i]
+'''
+ argmin_{w[i]} [ SUM[ (prediction - output)^2 ] + lambda*( |w[1]| + ... + |w[k]|) ]
+         / (ro[i] + lambda/2)    if ro[i] < -lambda/2
+ w[i] = {  0                     if -lambda/2 <= ro[i] <= lambda/2
+         \ (ro[i] - lambda/2)    if ro[i] > lambda/2
+ ro[i] = SUM[ [feature_i]*(output - (prediction -[feature_i]*w[i])) ]
+ ( row 1: -H(1,i)*w[i], row 2: -H(2,i)*w[i], ... )
+ note: we do not regularize constant feature, so w[0] = ro[i]
+'''
 
 # optimizes the cost function over a single coordinate
 # compute the new weight of the ith feature
