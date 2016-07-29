@@ -30,7 +30,6 @@ products = products[products['rating'] != 3]
 # create sentiment column
 products['sentiment'] = products['rating'].apply(lambda x: +1 if x > 3 else -1)
 
-
 train_data, test_data = train_test_split(products, test_size=.2, random_state=0)
 
 # print test_data[10:13]['sentiment']
@@ -159,9 +158,9 @@ vectorizer = CountVectorizer(token_pattern=r'\b\w+\b')
  fit: learn a vocabulary dictionary of all tokens in raw documents
  transform: transform documents to document-term matrix:
                word1 word2 word3
-       row1      1     1     0
-       row2      1     2     0
-       row3      0     0     1
+       doc1      1     1     0
+       doc2      1     2     0
+       doc3      0     0     1
 '''
 train_matrix = vectorizer.fit_transform(train_data['review_clean'])
 

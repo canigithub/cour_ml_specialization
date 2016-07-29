@@ -122,6 +122,7 @@ def predict_output(feature_matrix, weights):
 # errors: y - y_hat, feature: H
 # errors: Nx1, feature: NxD, weights: Dx1
 # feature_constant: col # of the constant -> skip penalty on this column
+# penalty is considered here
 def feature_derivative_ridge(errors, feature, weights, l2_penalty, feature_constant):
     derivative = -2*feature.T.dot(errors) + 2*l2_penalty*weights
     derivative[feature_constant] -= 2*l2_penalty*weights[feature_constant]
