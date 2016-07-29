@@ -5,8 +5,6 @@
 import numpy as np
 import pandas as pd
 from sklearn.cross_validation import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
 import json
 
