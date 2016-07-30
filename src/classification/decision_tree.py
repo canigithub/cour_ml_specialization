@@ -449,8 +449,9 @@ def prune_tree(tree, data, target, param):
         if tot_cost_aft < tot_cost_bef:
 
             print 'pruning:', node, ' before: %.5f' % tot_cost_bef, ' after: %.5f' % tot_cost_aft, \
-                ' # of leaves:', get_num_leaves(tree), ' error: %.5f', \
-                (tot_cost_aft - param * get_num_leaves(tree))
+                ' # of leaves:', get_num_leaves(tree), ' train_err: %.5f' % \
+                (tot_cost_aft - param * get_num_leaves(tree)), ' test_err: %.5f' % \
+                evaluate_classification_error(tree, test_data, target)
 
             node.splitting_feature = None
             node.left = None
@@ -459,7 +460,9 @@ def prune_tree(tree, data, target, param):
                 pq.put(node.parent)
 
         else:
-            print 'pruning:', node, ' restore.'
+            print 'pruning:', node, ' restore', ' train_err: %.5f' % \
+                (tot_cost_aft - param * get_num_leaves(tree)), ' test_err: %.5f' % \
+                evaluate_classification_error(tree, test_data, target)
             node.is_leaf = False
             node.prediction = None
 
@@ -467,7 +470,7 @@ def prune_tree(tree, data, target, param):
 
 pruned_tree = prune_tree(my_decision_tree, train_data, target, param=1e-4)
 print 'test error rate after pruning:', evaluate_classification_error(my_decision_tree, test_data, target), \
-    ' tree size:', get_num_leaves(pruned_tree)
+    ' # of leaves:', get_num_leaves(pruned_tree)
 # pruning can't decrease error rate significantly. but as long as error dont increase
 # significantly, it worth to prune due to Occam's Razor
 
