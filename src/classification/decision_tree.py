@@ -1,6 +1,7 @@
 
 # train a decision tree, one-hot encoding
 # use graphviz to visulize decision tree
+# tree pruning
 
 import numpy as np
 import pandas as pd
@@ -9,6 +10,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.feature_extraction import DictVectorizer
 import math
+import Queue
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -225,19 +227,44 @@ def best_splitting_feature(data, features, target):
 
 
 '''
-start to build the decision tree. each node is represented as a dict:
+start to build the decision tree. node is represented as a class:
     {
         'is_leaf': boolean,
         'prediction': prediction if at leaf node else None
         'left': left subtree
         'right': right subtree
         'splitting_feature': the feature that this node splits on
+        'depth': depth of the current node
     }
 '''
 
+# overview of construct the decision tree:
+# step 1: create tree base on splitting features
+# step 2: iterate the tree to find leaves and mark depth of each node
+# step 3: prune the tree from bottom leaves
+
+
+class Node(object):
+
+    def __init__(self, size, is_leaf, prediction, parent=None, left=None, right=None, splitting_feature=None, depth=-1):
+        self.size = size
+        self.is_leaf = is_leaf
+        self.prediction = prediction
+        self.parent = parent
+        self.left = left
+        self.right = right
+        self.splitting_feature = splitting_feature
+        self.depth = depth
+
+    def __cmp__(self, other):
+        return cmp(other.depth, self.depth)  # need max-pq default is min-pq
+
+    def __str__(self):
+        return str(self.splitting_feature)
+
 
 # create leaf node given a set of target values
-def create_leaf(target_values):
+def create_leaf(target_values, left=None, right=None):
 
     # set prediction to the majority class
     num_yes = (target_values == +1).sum()
@@ -246,12 +273,7 @@ def create_leaf(target_values):
     prediction = +1 if num_yes > num_no else -1
 
     # create a leaf node
-    leaf = {'is_leaf': True,
-            'prediction': prediction,
-            'left': None,
-            'right': None,
-            'splitting_feature': None
-            }
+    leaf = Node(size=len(target_values), is_leaf=True, prediction=prediction, left=left, right=right)
     return leaf
 
 
@@ -304,26 +326,28 @@ def decision_tree_create(data, features, target, current_depth=0, max_depth=10):
         # print "Create a leaf node on a perfect split"
         return create_leaf(target_values)
 
-    right_subtree = decision_tree_create(no_part, remaining_features, target,
-                                         current_depth+1, max_depth)
     left_subtree = decision_tree_create(yes_part, remaining_features, target,
                                         current_depth+1, max_depth)
+    right_subtree = decision_tree_create(no_part, remaining_features, target,
+                                         current_depth+1, max_depth)
 
-    node = {'is_leaf': False,
-            'prediction': None,
-            'left': left_subtree,
-            'right': right_subtree,
-            'splitting_feature': splitting_feature
-            }
+    node = Node(len(data), False, None, None, left_subtree, right_subtree, splitting_feature)
 
     return node
 
 
 # count total nodes of a decision tree
 def count_nodes(tree):
-    if tree['is_leaf']:
+    if tree.is_leaf:
         return 1
-    return 1 + count_nodes(tree['left']) + count_nodes(tree['right'])
+    return 1 + count_nodes(tree.left) + count_nodes(tree.right)
+
+
+# get total # of leaves in the tree
+def get_num_leaves(tree):
+    if tree.is_leaf:
+        return 1
+    return get_num_leaves(tree.left) + get_num_leaves(tree.right)
 
 
 feature_list = onehot_features
@@ -334,48 +358,118 @@ if type(feature_list) == pd.indexes.base.Index:
 
 
 # the test below fail. the reason is that while there are a lot features which have same
-# classification error, but the order of them is different from the test present (the splitting
-# feature will be first encounter first is order) which lead to different splits.
-# small_data_decision_tree = decision_tree_create(train_data, feature_list, 'safe_loans', max_depth=3)
-# if count_nodes(small_data_decision_tree) == 13:
+# classification error, but the order of them is 'random', different from the test present,
+# (the splitting feature will the be first encountered) which lead to different splits.
+# small_decision_tree = decision_tree_create(train_data, feature_list, 'safe_loans', max_depth=3)
+# if count_nodes(small_decision_tree) == 13:
 #     print 'Test passed!'
 # else:
 #     print 'Test failed... try again!'
-#     print 'Number of nodes found                :', count_nodes(small_data_decision_tree)
+#     print 'Number of nodes found                :', count_nodes(small_decision_tree)
 #     print 'Number of nodes that should be there : 13'
 
 
 # create the classfier using decision tree
 # x is a single data point
 def classify(tree, x, annotate=False):
-    if tree['is_leaf']:
+    # if tree['is_leaf']:
+    if tree.is_leaf:
         if annotate:
             print "At leaf, predicting %s" % tree['prediction']
-        return tree['prediction']
+        return tree.prediction
     else:
-        split_feature_value = x[tree['splitting_feature']]
+        split_feature_value = x[tree.splitting_feature]
         if annotate:
             print "Split on %s = %s" % (tree['splitting_feature'], split_feature_value)
         if split_feature_value == 1:
-            return classify(tree['left'], x, annotate)
+            return classify(tree.left, x, annotate)
         else:
-            return classify(tree['right'], x, annotate)
+            return classify(tree.right, x, annotate)
 
 
-my_decision_tree = decision_tree_create(train_data, feature_list, target, max_depth=6)
-
-# print test_data.iloc[0][target]
-# prediction = classify(my_decision_tree, test_data.iloc[0])
-# print prediction
-
-
-def evaluate_classification_error(tree, data):
-    # axis=1: apply to each row (in column direction)
+# target: col_name
+def evaluate_classification_error(tree, data, target):
+    # axis=1: apply to each row (in vertical direction)
     prediction = data.apply(lambda x: classify(tree, x), axis=1)
     num_mistakes = (prediction != data[target]).sum()
     return float(num_mistakes)/len(data)
 
-# print evaluate_classification_error(my_decision_tree, test_data)
+
+my_decision_tree = decision_tree_create(train_data, feature_list, target, max_depth=20)
+
+print 'test error rate before pruning:', evaluate_classification_error(my_decision_tree, test_data, target), \
+    ' # of leaves:', get_num_leaves(my_decision_tree)
+
+
+# iterate tree, mark node depth and insert into PQ if both children are leaves
+# also mark parents
+def iterate_tree(pq, tree, parenet=None, depth=0):
+    tree.depth = depth
+    tree.parent = parenet
+
+    if tree.is_leaf:
+        return
+
+    if tree.left.is_leaf and tree.right.is_leaf:
+        pq.put(tree)
+        return
+    iterate_tree(pq, tree.left, tree, depth+1)
+    iterate_tree(pq, tree.right, tree, depth+1)
+
+
+# given tree and # of leaves, compute total cost
+# total_cost = error(T) + param * num_leaves
+def get_total_cost(tree, data, target, num_leaves, param):
+    return evaluate_classification_error(tree, data, target) + param * num_leaves
+
+
+# pruning a tree -> deal with overfitting
+def prune_tree(tree, data, target, param):
+
+    pq = Queue.PriorityQueue()
+    iterate_tree(pq, tree)
+
+    while not pq.empty():
+        node = pq.get()  # keep in mind both children of node are leaves
+
+        # compute total cost before pruning
+        tot_cost_bef = get_total_cost(tree, data, target, get_num_leaves(tree), param)
+
+        # remove the leaves of this node and create leaf on this node
+        # prediction of the new leaf can be predicted by it's leaf & right child's size
+        if node.left.size > node.right.size:
+            node.prediction = node.left.prediction
+        else:
+            node.prediction = node.right.prediction
+        # set node to leaf
+        node.is_leaf = True
+        # compute total cost after pruning
+        tot_cost_aft = get_total_cost(tree, data, target, get_num_leaves(tree), param)
+
+        if tot_cost_aft < tot_cost_bef:
+
+            print 'pruning:', node, ' before: %.5f' % tot_cost_bef, ' after: %.5f' % tot_cost_aft, \
+                ' # of leaves:', get_num_leaves(tree), ' error: %.5f', \
+                (tot_cost_aft - param * get_num_leaves(tree))
+
+            node.splitting_feature = None
+            node.left = None
+            node.right = None   # finalize the creation of leaf
+            if node.parent is not None and node.parent.left.is_leaf and node.parent.right.is_leaf:
+                pq.put(node.parent)
+
+        else:
+            print 'pruning:', node, ' restore.'
+            node.is_leaf = False
+            node.prediction = None
+
+    return tree
+
+pruned_tree = prune_tree(my_decision_tree, train_data, target, param=1e-4)
+print 'test error rate after pruning:', evaluate_classification_error(my_decision_tree, test_data, target), \
+    ' tree size:', get_num_leaves(pruned_tree)
+# pruning can't decrease error rate significantly. but as long as error dont increase
+# significantly, it worth to prune due to Occam's Razor
 
 
 # print a single stump
@@ -389,9 +483,7 @@ def print_stump(tree, name='root'):
     print '         |---------------|----------------|'
     print '         |                                |'
     print '         |                                |'
-    print '         |                                |'
     print '  [{0} == 0]               [{0} == 1]    '.format(split_name)
-    print '         |                                |'
     print '         |                                |'
     print '         |                                |'
     print '    (%s)                         (%s)' \
@@ -400,4 +492,4 @@ def print_stump(tree, name='root'):
 
 
 # print_stump(my_decision_tree)
-print_stump(my_decision_tree['left'], my_decision_tree['splitting_feature'])
+# print_stump(my_decision_tree['left'], my_decision_tree['splitting_feature'])
