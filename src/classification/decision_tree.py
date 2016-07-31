@@ -72,15 +72,8 @@ loans_data = risk_loans.append(safe_loans)
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 
 
-# given an arry return a set of bins for categorical variables
-# default divided sections: 10
-def numerical_to_categorical(values, num_categories=10):
-    hist = np.histogram(values, bins=num_categories-2)
-    return hist[1]  # return the ticks values
-
-
-# one-hot encoder: for numerical values, if unique values > 10, then use a set of
-# ranges to represent it. for string values, represent each value individually.
+# one-hot encoder: for numerical values, divide values in 10 sections.
+# for string values, represent each value individually.
 # dataframe: pd.Dataframe, features: LIST of column names
 def encode_one_hot(dataframe, features):
 
@@ -88,18 +81,16 @@ def encode_one_hot(dataframe, features):
 
     for feat in features:
         if df[feat].dtypes == int or df[feat].dtypes == float:  # all numerical -> binary categories
-            categorical_variables = numerical_to_categorical(df[feat])
-            for i, value in enumerate(categorical_variables):
-                if i == 0:
-                    name = feat + ' < ' + str(value)
-                    df[name] = df[feat].apply(lambda x: 1 if x < value else 0)
-                else:
-                    val = categorical_variables[i-1]
-                    name = str(val) + ' <= ' + feat + ' < ' + str(value)
-                    df[name] = df[feat].apply(lambda x: 1 if val <= x < value else 0)
-                if i == len(categorical_variables) - 1:
-                    name = feat + ' > ' + str(value)
-                    df[name] = df[feat].apply(lambda x: 1 if x > value else 0)
+            categorical = np.histogram(df[feat], bins=10)[1]
+            for i in range(1, len(categorical)):
+                val0 = categorical[i-1]
+                val1 = categorical[i]
+                if i < len(categorical)-1:
+                    name = str(val0) + ' <= ' + feat + ' < ' + str(val1)
+                    df[name] = df[feat].apply(lambda x: 1 if val0 <= x < val1 else 0)
+                else:  # the last elem
+                    name = str(val0) + ' <= ' + feat + ' <= ' + str(val1)
+                    df[name] = df[feat].apply(lambda x: 1 if val0 <= x <= val1 else 0)
 
             del df[feat]
 
@@ -117,6 +108,9 @@ def encode_one_hot(dataframe, features):
 onehot_data = encode_one_hot(loans_data, features)
 onehot_features = onehot_data.columns
 onehot_data[target] = loans_data[target]
+
+print onehot_features
+exit()
 
 train_data, test_data = train_test_split(onehot_data, test_size=.2, random_state=0)
 
@@ -450,24 +444,3 @@ print 'test error rate after pruning:', evaluate_classification_error(my_decisio
 # significantly, it worth to prune due to Occam's Razor
 
 
-# print a single stump
-def print_stump(tree, name='root'):
-    split_name = tree['splitting_feature']  # split_name is something like 'term. 36 months'
-    if split_name is None:
-        print "(leaf, label: %s)" % tree['prediction']
-        return None
-    split_feature, split_value = split_name.split('=')
-    print '                       %s' % name
-    print '         |---------------|----------------|'
-    print '         |                                |'
-    print '         |                                |'
-    print '  [{0} == 0]               [{0} == 1]    '.format(split_name)
-    print '         |                                |'
-    print '         |                                |'
-    print '    (%s)                         (%s)' \
-        % (('leaf, label: ' + str(tree['left']['prediction']) if tree['left']['is_leaf'] else 'subtree'),
-           ('leaf, label: ' + str(tree['right']['prediction']) if tree['right']['is_leaf'] else 'subtree'))
-
-
-# print_stump(my_decision_tree)
-# print_stump(my_decision_tree['left'], my_decision_tree['splitting_feature'])
