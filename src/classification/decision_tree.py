@@ -11,6 +11,7 @@ from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.feature_extraction import DictVectorizer
 import math
 import Queue
+import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -21,19 +22,20 @@ del loans['bad_loans']
 
 
 # less features for the second part
-features = ['grade',                     # grade of the loan
+features = [
+            # 'grade',                     # grade of the loan
             # 'sub_grade',                 # sub-grade of the loan
             # 'short_emp',                 # one year or less of employment
             # 'emp_length_num',            # number of years of employment (for part 1)
-            'emp_length',                # number of years of employment (for part 2)
-            'home_ownership',            # home_ownership status: own, mortgage or rent
+            # 'emp_length',                # number of years of employment (for part 2)
+            # 'home_ownership',            # home_ownership status: own, mortgage or rent
             # 'dti',                       # debt to income ratio
             # 'purpose',                   # the purpose of the loan
-            'term',                      # the term of the loan
+            # 'term',                      # the term of the loan
             # 'last_delinq_none',          # has borrower had a delinquincy
             # 'last_major_derog_none',     # has borrower had 90 day or worse rating
             # 'revol_util',                # percent of available credit being used
-            # 'total_rec_late_fee',        # total late fees received to day
+            'total_rec_late_fee',        # total late fees received to day
             ]
 
 target = 'safe_loans'                    # prediction target (y) (+1 means safe, -1 is risky)
@@ -70,62 +72,34 @@ loans_data = risk_loans.append(safe_loans)
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 
 
-# base: the unit of rounding, e.g. 1, 10, 100 etc
-def round_down_to(num, base):
-    return int(math.floor(num / base)) * base
-
-
-def get_num_length(num):
-    num = abs(int(math.ceil(num)))
-    return len(str(num))
-
-
-# given the numpy list: unique_values (len > 10)
-# return a set of categorical variables (maximum is 10)
-# improvement: analysis the statistics before split the categ
-# for example, total_rec_late_fee column is highly skewed. for this
-# kind of column, better divide by it's density
-def numerical_to_categorical(unique_values):
-    categorical = []
-    variable_range = unique_values.max() - unique_values.min()
-    n = get_num_length(variable_range)
-    base = 10**(n-1)
-    value = unique_values.min()
-    while value < unique_values.max():
-        categorical.append(round_down_to(value, base))
-        value += base
-
-    return categorical
+# given an arry return a set of bins for categorical variables
+# default divided sections: 10
+def numerical_to_categorical(values, num_categories=10):
+    hist = np.histogram(values, bins=num_categories-2)
+    return hist[1]  # return the ticks values
 
 
 # one-hot encoder: for numerical values, if unique values > 10, then use a set of
 # ranges to represent it. for string values, represent each value individually.
 # dataframe: pd.Dataframe, features: LIST of column names
-# !!!For practical use, it's crucial improve the numerical_to_categorical function
-# to divide the values more resonablely.!!!
-# (for example, based on the distribution density)
 def encode_one_hot(dataframe, features):
 
     df = pd.DataFrame(dataframe[features])  # make a copy of original dataframe
 
-    # split the numerical feature if its unique values are too many
-    # if unique values <= 10, just use the values to split
     for feat in features:
-        if (df[feat].dtypes == int or df[feat].dtypes == float) \
-                and len(df[feat].unique()) > 10:
-            unique_values = df[feat].unique()
-            categorical_variables = numerical_to_categorical(unique_values)
+        if df[feat].dtypes == int or df[feat].dtypes == float:  # all numerical -> binary categories
+            categorical_variables = numerical_to_categorical(df[feat])
             for i, value in enumerate(categorical_variables):
                 if i == 0:
                     name = feat + ' < ' + str(value)
                     df[name] = df[feat].apply(lambda x: 1 if x < value else 0)
-                elif i == len(categorical_variables) - 1:
-                    name = feat + ' > ' + str(value)
-                    df[name] = df[feat].apply(lambda x: 1 if x > value else 0)
                 else:
                     val = categorical_variables[i-1]
                     name = str(val) + ' <= ' + feat + ' < ' + str(value)
                     df[name] = df[feat].apply(lambda x: 1 if val <= x < value else 0)
+                if i == len(categorical_variables) - 1:
+                    name = feat + ' > ' + str(value)
+                    df[name] = df[feat].apply(lambda x: 1 if x > value else 0)
 
             del df[feat]
 
@@ -467,6 +441,7 @@ def prune_tree(tree, data, target, param):
             node.prediction = None
 
     return tree
+
 
 pruned_tree = prune_tree(my_decision_tree, train_data, target, param=1e-4)
 print 'test error rate after pruning:', evaluate_classification_error(my_decision_tree, test_data, target), \
