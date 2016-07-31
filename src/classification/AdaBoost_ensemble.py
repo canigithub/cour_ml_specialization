@@ -424,7 +424,7 @@ def print_stump(tree):
 # print_stump(tree_stumps[1])
 
 
-num_tree_stumps = 60
+num_tree_stumps = 120
 stump_weights, tree_stumps = adaboost_with_tree_stumps(train_data,
                                                        feature_list, target, num_tree_stumps=num_tree_stumps)
 
@@ -448,7 +448,7 @@ plt.plot(range(1, num_tree_stumps+1), train_error_all, '-', linewidth=4.0, label
 plt.plot(range(1, num_tree_stumps+1), test_error_all, '-', linewidth=4.0, label='Test error')
 
 plt.title('Performance of Adaboost ensemble')
-plt.xlabel('# of iterations')
+plt.xlabel('# of tree stumps')
 plt.ylabel('Classification error')
 plt.rcParams.update({'font.size': 16})
 plt.legend(loc='best', prop={'size': 15})
