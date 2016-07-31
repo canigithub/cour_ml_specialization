@@ -23,31 +23,31 @@ del loans['bad_loans']
 target = 'safe_loans'
 features = [
             'grade',                     # grade of the loan (categorical)
-            # 'sub_grade_num',             # sub-grade of the loan as a number from 0 to 1
-            # 'short_emp',                 # one year or less of employment
+            'sub_grade_num',             # sub-grade of the loan as a number from 0 to 1
+            'short_emp',                 # one year or less of employment
             # 'emp_length_num',            # number of years of employment (for part 1)
             'emp_length',                # number of years of employment (for part 2)
             'home_ownership',            # home_ownership status: own, mortgage or rent
-            # 'dti',                       # debt to income ratio
-            # 'purpose',                   # the purpose of the loan
+            'dti',                       # debt to income ratio
+            'purpose',                   # the purpose of the loan
             'term',                      # the term of the loan
-            # 'payment_inc_ratio',         # ratio of the monthly payment to income
-            # 'delinq_2yrs',               # number of delinquincies
-            # 'delinq_2yrs_zero',          # no delinquincies in last 2 years
-            # 'inq_last_6mths',            # number of creditor inquiries in last 6 months
-            # 'last_delinq_none',          # has borrower had a delinquincy
-            # 'last_major_derog_none',     # has borrower had 90 day or worse rating
-            # 'open_acc',                  # number of open credit accounts
-            # 'pub_rec',                   # number of derogatory public records
-            # 'pub_rec_zero',              # no derogatory public records
-            # 'revol_util',                # percent of available credit being used
-            # 'total_rec_late_fee',        # total late fees received to day
-            # 'int_rate',                  # interest rate of the loan
-            # 'total_rec_int',             # interest received to date
-            # 'annual_inc',                # annual income of borrower
-            # 'funded_amnt',               # amount committed to the loan
-            # 'funded_amnt_inv',           # amount committed by investors for the loan
-            # 'installment',               # monthly payment owed by the borrower
+            'payment_inc_ratio',         # ratio of the monthly payment to income
+            'delinq_2yrs',               # number of delinquincies
+            'delinq_2yrs_zero',          # no delinquincies in last 2 years
+            'inq_last_6mths',            # number of creditor inquiries in last 6 months
+            'last_delinq_none',          # has borrower had a delinquincy
+            'last_major_derog_none',     # has borrower had 90 day or worse rating
+            'open_acc',                  # number of open credit accounts
+            'pub_rec',                   # number of derogatory public records
+            'pub_rec_zero',              # no derogatory public records
+            'revol_util',                # percent of available credit being used
+            'total_rec_late_fee',        # total late fees received to day
+            'int_rate',                  # interest rate of the loan
+            'total_rec_int',             # interest received to date
+            'annual_inc',                # annual income of borrower
+            'funded_amnt',               # amount committed to the loan
+            'funded_amnt_inv',           # amount committed by investors for the loan
+            'installment',               # monthly payment owed by the borrower
            ]
 
 # Extract the feature columns and target column
@@ -123,6 +123,15 @@ feature_list = onehot_features
 if type(feature_list) == pd.indexes.base.Index:
     feature_list = feature_list.tolist()  # cast to list type to support remove()
 
+# remove columns that has only one value
+copied_list = feature_list[:]
+for feature in feature_list:
+    if len(onehot_data[feature].unique()) == 1:
+        del onehot_data[feature]
+        copied_list.remove(feature)
+feature_list = copied_list
+
+
 train_data, test_data = train_test_split(onehot_data, test_size=.2, random_state=0)
 # print train_data.isnull().sum().sum()
 
@@ -131,10 +140,10 @@ train_data, test_data = train_test_split(onehot_data, test_size=.2, random_state
 # use sklearn Decision Tree Classifier
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 
-grad_boost_model = GradientBoostingClassifier(random_state=0)
-grad_boost_model.fit(train_data[onehot_features], train_data[target])
-ada_boost_model = AdaBoostClassifier(random_state=0)
-ada_boost_model.fit(train_data[onehot_features], train_data[target])
+# grad_boost_model = GradientBoostingClassifier(random_state=0)
+# grad_boost_model.fit(train_data[onehot_features], train_data[target])
+# ada_boost_model = AdaBoostClassifier(random_state=0)
+# ada_boost_model.fit(train_data[onehot_features], train_data[target])
 
 
 def get_classification_accuracy(model, data, output):
@@ -220,7 +229,7 @@ def best_splitting_feature(data, features, target, data_weights):
         elif error_value != (wm_yes + wm_no):
             identical = False
 
-        if (wm_yes + wm_no) <= best_error:  #####
+        if (wm_yes + wm_no) < best_error:
             best_feature = feature
             best_error = wm_yes + wm_no
 
@@ -335,20 +344,22 @@ def evaluate_classification_error(tree, data, target):
     return float(num_mistakes)/len(data)
 
 
-
 # return the list of stumps with its coefficients
 def adaboost_with_tree_stumps(data, features, target, num_tree_stumps):
 
     alpha = np.ones(len(data), dtype=float) / len(data)
     coeffs = []  # coefficient for each stump
     stumps = []
-    target_value = data[target]
 
     for t in range(num_tree_stumps):
 
         # Learn a weighted decision tree stump with max_depth = 1
         tree_stump = weighted_decision_tree_create(data, features, target,
                                                    data_weights=alpha, max_depth=1)
+
+        print 'create tree stump on: ', tree_stump.splitting_feature
+
+        features.remove(tree_stump.splitting_feature)  # remove the created stump
         stumps.append(tree_stump)
 
         prediction = data.apply(lambda x: classify(tree_stump, x), axis=1)
@@ -368,6 +379,7 @@ def adaboost_with_tree_stumps(data, features, target, num_tree_stumps):
         alpha[correct_indices] *= exp(-coeff_t)
         alpha[mistake_indices] *= exp(coeff_t)
 
+        # normalization
         alpha /= alpha.sum()
 
     return coeffs, stumps
@@ -412,19 +424,19 @@ def print_stump(tree):
 # print_stump(tree_stumps[1])
 
 
-# this may take a while...
+num_tree_stumps = 60
 stump_weights, tree_stumps = adaboost_with_tree_stumps(train_data,
-                                                       feature_list, target, num_tree_stumps=30)
+                                                       feature_list, target, num_tree_stumps=num_tree_stumps)
 
 train_error_all = []
-for n in xrange(1, 31):
+for n in xrange(1, num_tree_stumps+1):
     predictions = predict_adaboost(stump_weights[:n], tree_stumps[:n], train_data)
     accuray = (predictions == train_data[target]).sum() / float(len(train_data))
     train_error_all.append(1.0 - accuray)
     print "Iteration %s, training error = %s" % (n, train_error_all[n-1])
 
 test_error_all = []
-for n in xrange(1, 31):
+for n in xrange(1, num_tree_stumps+1):
     predictions = predict_adaboost(stump_weights[:n], tree_stumps[:n], test_data)
     accuray = (predictions == test_data[target]).sum() / float(len(test_data))
     test_error_all.append(1.0 - accuray)
@@ -432,8 +444,8 @@ for n in xrange(1, 31):
 
 
 plt.rcParams['figure.figsize'] = 7, 5
-plt.plot(range(1, 31), train_error_all, '-', linewidth=4.0, label='Training error')
-plt.plot(range(1, 31), test_error_all, '-', linewidth=4.0, label='Test error')
+plt.plot(range(1, num_tree_stumps+1), train_error_all, '-', linewidth=4.0, label='Training error')
+plt.plot(range(1, num_tree_stumps+1), test_error_all, '-', linewidth=4.0, label='Test error')
 
 plt.title('Performance of Adaboost ensemble')
 plt.xlabel('# of iterations')
