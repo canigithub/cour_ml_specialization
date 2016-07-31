@@ -23,19 +23,19 @@ del loans['bad_loans']
 
 # less features for the second part
 features = [
-            # 'grade',                     # grade of the loan
+            'grade',                     # grade of the loan
             # 'sub_grade',                 # sub-grade of the loan
             # 'short_emp',                 # one year or less of employment
             # 'emp_length_num',            # number of years of employment (for part 1)
-            # 'emp_length',                # number of years of employment (for part 2)
-            # 'home_ownership',            # home_ownership status: own, mortgage or rent
+            'emp_length',                # number of years of employment (for part 2)
+            'home_ownership',            # home_ownership status: own, mortgage or rent
             # 'dti',                       # debt to income ratio
             # 'purpose',                   # the purpose of the loan
-            # 'term',                      # the term of the loan
+            'term',                      # the term of the loan
             # 'last_delinq_none',          # has borrower had a delinquincy
             # 'last_major_derog_none',     # has borrower had 90 day or worse rating
             # 'revol_util',                # percent of available credit being used
-            'total_rec_late_fee',        # total late fees received to day
+            # 'total_rec_late_fee',        # total late fees received to day
             ]
 
 target = 'safe_loans'                    # prediction target (y) (+1 means safe, -1 is risky)
@@ -109,8 +109,10 @@ onehot_data = encode_one_hot(loans_data, features)
 onehot_features = onehot_data.columns
 onehot_data[target] = loans_data[target]
 
-print onehot_features
-exit()
+feature_list = onehot_features
+if type(feature_list) == pd.indexes.base.Index:
+    feature_list = feature_list.tolist()  # cast to list type to support remove()
+
 
 train_data, test_data = train_test_split(onehot_data, test_size=.2, random_state=0)
 
@@ -118,7 +120,6 @@ train_data, test_data = train_test_split(onehot_data, test_size=.2, random_state
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
 # use sklearn Decision Tree Classifier
 # *.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.* #
-
 
 decision_tree_model = DecisionTreeClassifier(max_depth=6, random_state=0)
 decision_tree_model.fit(train_data[onehot_features], train_data[target])
@@ -153,14 +154,9 @@ def get_classification_accuracy(model, data, output):
 def intermediate_node_num_mistakes(labels_in_node):
     if len(labels_in_node) == 0:
         return 0
-
     num_pos = (labels_in_node == +1).sum()
     num_neg = (labels_in_node == -1).sum()
-
-    if num_pos >= num_neg:
-        return num_neg
-    else:
-        return num_pos
+    return num_pos if num_pos < num_neg else num_neg
 
 
 # select the feature with lowest classification error
@@ -179,8 +175,7 @@ def best_splitting_feature(data, features, target):
         num_err_yes = intermediate_node_num_mistakes(yes_part[target])
         num_err_no = intermediate_node_num_mistakes(no_part[target])
 
-        # since total # of data points are all the same, thus can use #
-        # of mistakes directly
+        # total # of data points are same -> can use # of mistakes directly
         if (num_err_yes + num_err_no) < min_num_mistakes:
             min_num_mistakes = num_err_yes + num_err_no
             best_feature = feature
@@ -194,19 +189,7 @@ def best_splitting_feature(data, features, target):
     return best_feature
 
 
-'''
-start to build the decision tree. node is represented as a class:
-    {
-        'is_leaf': boolean,
-        'prediction': prediction if at leaf node else None
-        'left': left subtree
-        'right': right subtree
-        'splitting_feature': the feature that this node splits on
-        'depth': depth of the current node
-    }
-'''
-
-# overview of construct the decision tree:
+# overview of construct a decision tree:
 # step 1: create tree base on splitting features
 # step 2: iterate the tree to find leaves and mark depth of each node
 # step 3: prune the tree from bottom leaves
@@ -232,7 +215,7 @@ class Node(object):
 
 
 # create leaf node given a set of target values
-def create_leaf(target_values, left=None, right=None):
+def create_leaf(target_values):
 
     # set prediction to the majority class
     num_yes = (target_values == +1).sum()
@@ -241,7 +224,7 @@ def create_leaf(target_values, left=None, right=None):
     prediction = +1 if num_yes > num_no else -1
 
     # create a leaf node
-    leaf = Node(size=len(target_values), is_leaf=True, prediction=prediction, left=left, right=right)
+    leaf = Node(size=len(target_values), is_leaf=True, prediction=prediction)
     return leaf
 
 
@@ -284,11 +267,10 @@ def decision_tree_create(data, features, target, current_depth=0, max_depth=10):
     # create a leaf node if the split is "perfect"
     # why can we create a leaf if the split is perfect? Because:
     # 1. split use any other feature will result in a worse error rate
-    # 2. this is a perfect split, means the majority classification is best, means
-    #    in the next recursion, no spliting will beat the majority classification
-    #    (everything is the same except majority classification is prohibitted, cause
-    #    you have to select one (worse) feature to split.) In general, next recursion
-    #    will always be worse.
+    # 2. this is a perfect split, means the majority classification is best, means in the next
+    #    recursion, no spliting will beat the majority classification (everything is the same
+    #    except majority classification is prohibitted, cause you have to select one (worse)
+    #    feature to split.) In general, next recursion will always be worse.
     # Thus, it's eligible to create a leaf here.
     if len(yes_part) == len(data) or len(no_part) == len(data):
         # print "Create a leaf node on a perfect split"
@@ -316,14 +298,6 @@ def get_num_leaves(tree):
     if tree.is_leaf:
         return 1
     return get_num_leaves(tree.left) + get_num_leaves(tree.right)
-
-
-feature_list = onehot_features
-
-# if necessary cast to list type to support remove() function
-if type(feature_list) == pd.indexes.base.Index:
-    feature_list = feature_list.tolist()
-
 
 # the test below fail. the reason is that while there are a lot features which have same
 # classification error, but the order of them is 'random', different from the test present,
