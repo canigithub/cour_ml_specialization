@@ -1,5 +1,5 @@
 
-# regression with L2 penalty, cross validation
+# regression with L2 penalty, shuffle for cross validation
 
 import numpy as np
 import pandas as pd

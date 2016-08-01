@@ -80,7 +80,7 @@ def predict_probability(featurea_matrix, weights):
 '''
  log-likelihood:
  ll(w) = SUM[ I[y_i = +1]*log(P(y_i = +1 | x_i, w)) + I[y_i = -1]*log(P(y_i = -1 | x_i, w)) ]
-       = SUM[ (I[y_i = +1]-1)*score_i) - log(1 + exp(-score_i)) ]
+       = SUM[ (I[y_i = +1] - 1)*score_i) - log(1 + exp(-score_i)) ]
 '''
 
 
