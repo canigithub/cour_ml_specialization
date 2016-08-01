@@ -145,6 +145,8 @@ def logistic_regression_SG_with_L2(feature_matrix, sentiment, init_weights, step
     return weights, ll_avg_all
 
 
+# efficient: convolve log_likelihood_all with the vector of length
+# smoothing_window that is filled with the value 1/smoothing_window.
 def make_plot(log_likelihood_all, len_data, batch_size, smoothing_window=1, label=''):
     plt.rcParams.update({'figure.figsize': (9, 5)})
     log_likelihood_all_ma = np.convolve(np.array(log_likelihood_all),
@@ -152,7 +154,7 @@ def make_plot(log_likelihood_all, len_data, batch_size, smoothing_window=1, labe
     plt.plot(np.array(range(smoothing_window-1, len(log_likelihood_all)))*float(batch_size)/len_data,
              log_likelihood_all_ma, linewidth=3.0, label=label)
     plt.rcParams.update({'font.size': 16})
-    plt.tight_layout()
+    # plt.tight_layout()
     plt.xlabel('# of passes over data')
     plt.ylabel('Average log likelihood per data point')
     plt.legend(loc='lower right', prop={'size': 14})
