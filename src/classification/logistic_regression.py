@@ -1,5 +1,5 @@
 
-# logistic regression, text cleaning, fill NaN
+# logistic regression, text cleaning, fill NaN, CountVectorizer
 
 import numpy as np
 import pandas as pd
