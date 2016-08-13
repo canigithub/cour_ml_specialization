@@ -28,7 +28,7 @@ with open('../../data/clustering_and_retrieval/people_wiki_map_index_to_word.jso
     map_index_to_word = json.load(f)
 
 
-# load pre-computed word count, tfidf
+# load pre-computed tfidf
 def load_sparse_csr(filename):
     loader = np.load(filename)
     data = loader['data']           # data array
